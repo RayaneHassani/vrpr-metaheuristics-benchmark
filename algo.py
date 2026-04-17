@@ -11,8 +11,8 @@ def random_graph(vertice_count=None, edge_chance=0.3):
 
     edges = [[0 for _ in range(vertice_count)] for _ in range(vertice_count)]
     for x in range(vertice_count):
-        for y in range(vertice_count):
-            if x != y and random.random() <= edge_chance:
+        for y in range(x+1, vertice_count):
+            if random.random() <= edge_chance:
                 edges[x][y] = 1
                 edges[y][x] = 1
 
@@ -30,7 +30,7 @@ def random_graph(vertice_count=None, edge_chance=0.3):
 
 G = random_graph(25, edge_chance=0.05)
 
-nx.draw(G, with_labels=True, node_color='lavender', node_size=500)
+nx.draw(G, with_labels=True, node_color='white', node_size=200)
 plt.show()
 
 
