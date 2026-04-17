@@ -37,6 +37,9 @@ for node in G.nodes():
     else:
         couleurs.append('white')
 
+plt.figure(figsize=(12, 8))
+pos = nx.spring_layout(G, k=2, iterations=100)
+
 nx.draw(G, with_labels=True, node_color=couleurs, node_size=200)
 plt.show()
 
