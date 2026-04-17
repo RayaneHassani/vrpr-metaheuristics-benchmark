@@ -30,7 +30,14 @@ def random_graph(vertice_count=None, edge_chance=0.3):
 
 G = random_graph(25, edge_chance=0.05)
 
-nx.draw(G, with_labels=True, node_color='white', node_size=200)
+couleurs = []
+for node in G.nodes():
+    if node == 0:
+        couleurs.append('red')
+    else:
+        couleurs.append('white')
+
+nx.draw(G, with_labels=True, node_color=couleurs, node_size=200)
 plt.show()
 
 
