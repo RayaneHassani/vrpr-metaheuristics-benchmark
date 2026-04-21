@@ -4,7 +4,6 @@ import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
 
-
 def random_graph(vertice_count=None, k_voisins=4, taux_fermeture=0.1, taux_surcout=0.08, facteur_surcout=2.0, complet=False):
     if vertice_count is None:
         vertice_count = 100
@@ -80,52 +79,46 @@ def random_graph(vertice_count=None, k_voisins=4, taux_fermeture=0.1, taux_surco
 
     return G
 
-# Affichage
-
-G = random_graph(25, k_voisins=3, taux_fermeture=0.1, taux_surcout=0.08, complet=True)
-
-couleurs = []
-for node in G.nodes():
-    if node == 0:
-        couleurs.append('red')
-    else:
-        couleurs.append('white')
-
-aretes_normales = [(i, j) for (i, j) in G.edges() if not G[i][j]['close'] and not G[i][j]['surcout']]
-aretes_fermees = [(i, j) for (i, j) in G.edges() if G[i][j]['close']]
-aretes_surcout = [(i, j) for (i, j) in G.edges() if G[i][j]['surcout']]
-
-plt.figure(figsize=(12, 8))
-pos = nx.get_node_attributes(G, 'pos')
-
-nx.draw_networkx_edges(G, pos, edgelist=aretes_normales, edge_color='black', width=1)
-nx.draw_networkx_edges(G, pos, edgelist=aretes_fermees, edge_color='red', width=1.5, style='dashed')
-nx.draw_networkx_edges(G, pos, edgelist=aretes_surcout, edge_color='orange', width=2)
-nx.draw_networkx_nodes(G, pos, node_color=couleurs, node_size=300, edgecolors='black')
-nx.draw_networkx_labels(G, pos, font_size=9)
-
-labels_cout = {(i, j): f"{G[i][j]['cout']:.0f}" for (i, j) in G.edges() if not G[i][j]['close']}
-
-nx.draw_networkx_edge_labels(G, pos, edge_labels=labels_cout, font_size=7)
-
-plt.show()
-
 def generer_solution_initiale(G, nb_vehicules):
-    # Tous les clients sauf le dépôt (C1)
-    clients = list(set(G.nodes()) - {0})
-    random.shuffle(clients)
-
-    # Initialiser les tournées : départ et retour au dépôt (C3 + C4)
+    clients_restants = set(G.nodes()) - {0}
     tournees = [[0, 0] for _ in range(nb_vehicules)]
 
-    # Répartir chaque client dans une tournée au hasard
-    for i, client in enumerate(clients):
-        k = i % nb_vehicules          # répartition circulaire équitable
-        tournees[k].insert(-1, client) # insérer avant le 0 final
+    k = 0  # véhicule courant (round-robin)
+    while clients_restants:
+        tournee = tournees[k]
+        ville_courante = tournee[-2]  # avant le 0 final
+
+        # Chercher le plus proche voisin accessible parmi les clients restants
+        meilleur, meilleur_cout = None, float('inf')
+        for candidat in clients_restants:
+            if (G.has_edge(ville_courante, candidat)
+                    and not G[ville_courante][candidat]['close']):
+                c = G[ville_courante][candidat]['cout']
+                if c < meilleur_cout:
+                    meilleur_cout = c
+                    meilleur = candidat
+
+        if meilleur is None:
+            # Aucun voisin direct depuis la position courante :
+            # fallback — insérer le client le moins coûteux depuis le dépôt
+            for candidat in clients_restants:
+                if (G.has_edge(0, candidat)
+                        and not G[0][candidat]['close']):
+                    c = G[0][candidat]['cout']
+                    if c < meilleur_cout:
+                        meilleur_cout = c
+                        meilleur = candidat
+
+        if meilleur is None:
+            # Toujours rien (graphe non-complet trop sparse) : force l'insertion
+            meilleur = next(iter(clients_restants))
+
+        tournee.insert(-1, meilleur)
+        clients_restants.remove(meilleur)
+        k = (k + 1) % nb_vehicules  # passer au véhicule suivant
 
     return tournees
 
-# Passer G en paramètre à recherche_tabou
 def recherche_tabou(G, solution_initiale, taille_tabou, iter_max):  # <-- G ajouté
     nb_iter = 0
     liste_tabou = deque(maxlen=taille_tabou)
@@ -219,6 +212,8 @@ print("=== Solution initiale ===")
 for k, tournee in enumerate(sol_init):
     cout_t = sum(
         G_test[tournee[i]][tournee[i+1]]['cout']
+        if G_test.has_edge(tournee[i], tournee[i+1]) and not G_test[tournee[i]][tournee[i+1]]['close']
+        else float('inf')
         for i in range(len(tournee) - 1)
     )
     print(f"  Véhicule {k} : {tournee}  |  coût = {cout_t:.1f}")
@@ -228,9 +223,11 @@ print(f"  Coût total initial : {cout_solution(G_test, sol_init):.1f}")
 meilleure, historique = recherche_tabou(G_test, sol_init, TAILLE_TABOU, ITER_MAX)
 
 print("\n=== Meilleure solution trouvée ===")
-for k, tournee in enumerate(meilleure):
+for k, tournee in enumerate(sol_init):
     cout_t = sum(
         G_test[tournee[i]][tournee[i+1]]['cout']
+        if G_test.has_edge(tournee[i], tournee[i+1]) and not G_test[tournee[i]][tournee[i+1]]['close']
+        else float('inf')
         for i in range(len(tournee) - 1)
     )
     print(f"  Véhicule {k} : {tournee}  |  coût = {cout_t:.1f}")
@@ -245,7 +242,32 @@ plt.title("Convergence de la recherche tabou")
 plt.tight_layout()
 plt.show()
 
+# Affichage
+couleurs = []
+for node in G_test.nodes():
+    if node == 0:
+        couleurs.append('red')
+    else:
+        couleurs.append('white')
 
+aretes_normales = [(i, j) for (i, j) in G_test.edges() if not G_test[i][j]['close'] and not G_test[i][j]['surcout']]
+aretes_fermees = [(i, j) for (i, j) in G_test.edges() if G_test[i][j]['close']]
+aretes_surcout = [(i, j) for (i, j) in G_test.edges() if G_test[i][j]['surcout']]
+
+plt.figure(figsize=(12, 8))
+pos = nx.get_node_attributes(G_test, 'pos')
+
+nx.draw_networkx_edges(G_test, pos, edgelist=aretes_normales, edge_color='black', width=1)
+nx.draw_networkx_edges(G_test, pos, edgelist=aretes_fermees, edge_color='red', width=1.5, style='dashed')
+nx.draw_networkx_edges(G_test, pos, edgelist=aretes_surcout, edge_color='orange', width=2)
+nx.draw_networkx_nodes(G_test, pos, node_color=couleurs, node_size=300, edgecolors='black')
+nx.draw_networkx_labels(G_test, pos, font_size=9)
+
+labels_cout = {(i, j): f"{G_test[i][j]['cout']:.0f}" for (i, j) in G_test.edges() if not G_test[i][j]['close']}
+
+nx.draw_networkx_edge_labels(G_test, pos, edge_labels=labels_cout, font_size=7)
+
+plt.show()
 
 
 
