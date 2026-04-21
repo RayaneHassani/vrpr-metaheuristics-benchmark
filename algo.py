@@ -1,6 +1,5 @@
 import random
 from collections import deque
-
 import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -81,10 +80,9 @@ def random_graph(vertice_count=None, k_voisins=4, taux_fermeture=0.1, taux_surco
 
     return G
 
-
 # Affichage
 
-G = random_graph(25, k_voisins=3, taux_fermeture=0.1, taux_surcout=0.08, complet=False)
+G = random_graph(25, k_voisins=3, taux_fermeture=0.1, taux_surcout=0.08, complet=True)
 
 couleurs = []
 for node in G.nodes():
@@ -97,33 +95,44 @@ aretes_normales = [(i, j) for (i, j) in G.edges() if not G[i][j]['close'] and no
 aretes_fermees = [(i, j) for (i, j) in G.edges() if G[i][j]['close']]
 aretes_surcout = [(i, j) for (i, j) in G.edges() if G[i][j]['surcout']]
 
-
 plt.figure(figsize=(12, 8))
 pos = nx.get_node_attributes(G, 'pos')
 
 nx.draw_networkx_edges(G, pos, edgelist=aretes_normales, edge_color='black', width=1)
-
 nx.draw_networkx_edges(G, pos, edgelist=aretes_fermees, edge_color='red', width=1.5, style='dashed')
-
 nx.draw_networkx_edges(G, pos, edgelist=aretes_surcout, edge_color='orange', width=2)
-
 nx.draw_networkx_nodes(G, pos, node_color=couleurs, node_size=300, edgecolors='black')
-
 nx.draw_networkx_labels(G, pos, font_size=9)
 
 labels_cout = {(i, j): f"{G[i][j]['cout']:.0f}" for (i, j) in G.edges() if not G[i][j]['close']}
+
 nx.draw_networkx_edge_labels(G, pos, edge_labels=labels_cout, font_size=7)
 
 plt.show()
 
+def generer_solution_initiale(G, nb_vehicules):
+    # Tous les clients sauf le dépôt (C1)
+    clients = list(set(G.nodes()) - {0})
+    random.shuffle(clients)
 
-def recherche_tabou(solution_initiale, taille_tabou, iter_max):
+    # Initialiser les tournées : départ et retour au dépôt (C3 + C4)
+    tournees = [[0, 0] for _ in range(nb_vehicules)]
+
+    # Répartir chaque client dans une tournée au hasard
+    for i, client in enumerate(clients):
+        k = i % nb_vehicules          # répartition circulaire équitable
+        tournees[k].insert(-1, client) # insérer avant le 0 final
+
+    return tournees
+
+# Passer G en paramètre à recherche_tabou
+def recherche_tabou(G, solution_initiale, taille_tabou, iter_max):  # <-- G ajouté
     nb_iter = 0
     liste_tabou = deque(maxlen=taille_tabou)
 
     solution_courante = solution_initiale
     meilleure_globale = solution_initiale
-    valeur_meilleure_globale = cout_solution(G, solution_initiale)
+    valeur_meilleure_globale = cout_solution(G, solution_initiale)   # <-- G passé
 
     historique = [valeur_meilleure_globale]
 
@@ -135,13 +144,12 @@ def recherche_tabou(solution_initiale, taille_tabou, iter_max):
             voisin_hashable = tuple(tuple(t) for t in voisin)
 
             if voisin_hashable not in liste_tabou:
-                val_voisin = cout_solution(G, voisin)
+                val_voisin = cout_solution(G, voisin)                # <-- G passé
 
                 if val_voisin < valeur_meilleure:
                     valeur_meilleure = val_voisin
                     meilleure = voisin
 
-        # Si aucun voisin valide trouvé, on arrête
         if meilleure is None:
             break
 
@@ -153,15 +161,10 @@ def recherche_tabou(solution_initiale, taille_tabou, iter_max):
             nb_iter += 1
 
         solution_courante = meilleure
-
-        solution_hashable = tuple(tuple(t) for t in solution_courante)
-        liste_tabou.append(solution_hashable)
-
+        liste_tabou.append(tuple(tuple(t) for t in solution_courante))
         historique.append(valeur_meilleure_globale)
 
     return meilleure_globale, historique
-
-
 
 def voisinage(solution):
     """Génère les solutions voisines par swap intra et relocate."""
@@ -189,7 +192,6 @@ def voisinage(solution):
 
     return voisins
 
-
 def cout_solution(G, solution):
     """Calcule le coût total d'une solution."""
     total = 0
@@ -201,7 +203,47 @@ def cout_solution(G, solution):
             total += G[i][j]['cout']
     return total
 
+# ============================================================
+# BLOC DE TEST MINIMAL
+# ============================================================
+    
+NB_VEHICULES = 3
+TAILLE_TABOU = 10
+ITER_MAX     = 50
 
+# 1. Générer le graphe et la solution initiale
+G_test = random_graph(15, taux_fermeture=0.05, taux_surcout=0.08, complet=True)
+sol_init = generer_solution_initiale(G_test, NB_VEHICULES)
+
+print("=== Solution initiale ===")
+for k, tournee in enumerate(sol_init):
+    cout_t = sum(
+        G_test[tournee[i]][tournee[i+1]]['cout']
+        for i in range(len(tournee) - 1)
+    )
+    print(f"  Véhicule {k} : {tournee}  |  coût = {cout_t:.1f}")
+print(f"  Coût total initial : {cout_solution(G_test, sol_init):.1f}")
+
+# 2. Lancer le tabou
+meilleure, historique = recherche_tabou(G_test, sol_init, TAILLE_TABOU, ITER_MAX)
+
+print("\n=== Meilleure solution trouvée ===")
+for k, tournee in enumerate(meilleure):
+    cout_t = sum(
+        G_test[tournee[i]][tournee[i+1]]['cout']
+        for i in range(len(tournee) - 1)
+    )
+    print(f"  Véhicule {k} : {tournee}  |  coût = {cout_t:.1f}")
+print(f"  Coût total final   : {cout_solution(G_test, meilleure):.1f}")
+
+# 3. Courbe de convergence
+plt.figure(figsize=(8, 4))
+plt.plot(historique, color='steelblue', linewidth=1.5)
+plt.xlabel("Itération")
+plt.ylabel("Coût meilleure solution")
+plt.title("Convergence de la recherche tabou")
+plt.tight_layout()
+plt.show()
 
 
 
