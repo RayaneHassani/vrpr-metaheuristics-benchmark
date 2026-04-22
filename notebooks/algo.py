@@ -88,7 +88,6 @@ def random_graph(vertice_count=None, k_voisins=4, taux_fermeture=0.1, taux_surco
 
     return G
 
-
 def glouton(G, nb_vehicules, k_rcl=3):
     clients_restants = set(G.nodes()) - {0}
     tournees = [[0, 0] for _ in range(nb_vehicules)]
@@ -129,7 +128,6 @@ def glouton(G, nb_vehicules, k_rcl=3):
         k = (k + 1) % nb_vehicules
 
     return tournees
-
 
 def recherche_tabou(G, solution_initiale, taille_tabou, iter_sans_amelioration_max):
     nb_iter = 0
@@ -173,7 +171,6 @@ def recherche_tabou(G, solution_initiale, taille_tabou, iter_sans_amelioration_m
 
     return meilleure_globale, historique
 
-
 def voisinage(solution):
     """Génère les solutions voisines par swap intra et relocate."""
     voisins = []
@@ -200,7 +197,6 @@ def voisinage(solution):
 
     return voisins
 
-
 def cout_solution(G, solution):
     """Calcule le coût total d'une solution."""
     total = 0
@@ -212,8 +208,7 @@ def cout_solution(G, solution):
             total += G[i][j]['cout']
     return total
 
-
-def multi_start_sac_a_dos(G, nb_restarts, m=3, k_rcl=3):
+def multi_start_glouton(G, nb_restarts, m=3, k_rcl=3):
     meilleure_globale = None
     cout_meilleure_globale = float('inf')
     couts_finaux = []
@@ -230,7 +225,6 @@ def multi_start_sac_a_dos(G, nb_restarts, m=3, k_rcl=3):
             cout_meilleure_globale = cout
 
     return meilleure_globale, couts_finaux
-
 
 def multi_start_tabou(G, nb_restarts, taille_tabou, iter_max, m=3, k_rcl=3):
     meilleure_globale = None
@@ -255,7 +249,6 @@ def multi_start_tabou(G, nb_restarts, taille_tabou, iter_max, m=3, k_rcl=3):
             cout_meilleure_globale = cout_finale
 
     return meilleure_globale, historiques, couts_finaux
-
 
 def genetic_algorithm_vrp_advanced(G, num_vehicles, pop_size=50, generations=100, taux_mutation=0.2):
     # --- 1. Vérification de la faisabilité ---
@@ -410,6 +403,7 @@ def multi_start_recuit(G, nb_restarts, m=3, k_rcl=3):
     meilleure_globale = None
     cout_meilleure_globale = float('inf')
     historiques = []
+    couts_initiaux = []
     couts_finaux = []
 
     print("\n" + "=" * 50)
@@ -418,23 +412,25 @@ def multi_start_recuit(G, nb_restarts, m=3, k_rcl=3):
 
     for restart in range(nb_restarts):
         sol_init = glouton(G, m, k_rcl=k_rcl)
-        # On s'assure que la solution de départ n'est pas infinie
-        if cout_solution(G, sol_init) == float('inf'):
+        cout_initial = cout_solution(G, sol_init)
+        
+        if cout_initial == float('inf'):
             continue
             
         meilleure, historique = recuit_simule(G, sol_init)
         cout_final = cout_solution(G, meilleure)
         
         historiques.append(historique)
+        couts_initiaux.append(cout_initial)
         couts_finaux.append(cout_final)
         
-        print(f"Restart {restart + 1}/{nb_restarts} : coût final = {cout_final:.2f}")
+        print(f"Restart {restart + 1}/{nb_restarts} : coût initial = {cout_initial:.2f} → coût final = {cout_final:.2f}")
         
         if cout_final < cout_meilleure_globale:
             meilleure_globale = meilleure
             cout_meilleure_globale = cout_final
             
-    return meilleure_globale, historiques, couts_finaux
+    return meilleure_globale, historiques, couts_initiaux, couts_finaux
 
 
 # Affichage
@@ -467,21 +463,21 @@ nx.draw_networkx_edge_labels(G, pos, edge_labels=labels_cout, font_size=7)
 plt.show()
 
 print("\n" + "=" * 50)
-print("MULTI-START SAC À DOS")
+print("MULTI-START GLOUTON")
 print("=" * 50)
 
 # ============================================================
-# MULTI-START SAC À DOS (baseline glouton pur)
+# MULTI-START GLOUTON
 # ============================================================
 
-meilleure_sac, couts_sac = multi_start_sac_a_dos(G, nb_restarts=5, m=3, k_rcl=3)
+meilleure_glouton, couts_glouton = multi_start_glouton(G, nb_restarts=5, m=3, k_rcl=3)
 
-print(f"\n=== RÉSULTATS SAC À DOS ===")
-print(f"Coût minimum trouvé : {min(couts_sac):.2f}")
-print(f"Coût maximum trouvé : {max(couts_sac):.2f}")
-print(f"Coût moyen          : {sum(couts_sac)/len(couts_sac):.2f}")
+print(f"\n=== RÉSULTATS GLOUTON ===")
+print(f"Coût minimum trouvé : {min(couts_glouton):.2f}")
+print(f"Coût maximum trouvé : {max(couts_glouton):.2f}")
+print(f"Coût moyen          : {sum(couts_glouton)/len(couts_glouton):.2f}")
 print(f"\nMeilleure solution :")
-for k, tournee in enumerate(meilleure_sac, start=1):
+for k, tournee in enumerate(meilleure_glouton, start=1):
     print(f"  Véhicule {k} : {tournee}")
 
 # ============================================================
@@ -535,28 +531,141 @@ for k, tournee in enumerate(best_routes, start=1):
 # MULTI-START RECUIT SIMULE
 # ============================================================
 
-meilleure_rs, historiques_rs, couts_rs = multi_start_recuit(G, nb_restarts=5, m=3)
+meilleure_rs, historiques_rs, couts_initiaux_rs, couts_rs = multi_start_recuit(G, nb_restarts=5, m=3)
 
 print(f"\n=== RÉSULTATS RECUIT SIMULÉ ===")
 print(f"Coût minimum trouvé : {min(couts_rs):.2f}")
+print(f"Coût maximum trouvé : {max(couts_rs):.2f}")
 print(f"Coût moyen          : {sum(couts_rs)/len(couts_rs):.2f}")
+print(f"\nMeilleure solution :")
 for k, tournee in enumerate(meilleure_rs, start=1):
     print(f"  Véhicule {k} : {tournee}")
 
 # ============================================================
-# COMPARAISON (les deux variables sont maintenant définies)
+# COMPARAISON DES 4 APPROCHES
 # ============================================================
 
-plt.figure(figsize=(10, 5))
-plt.bar(
-    [f"T{i+1}" for i in range(len(couts_finaux))] +
-    [f"S{i+1}" for i in range(len(couts_sac))],
-    couts_finaux + couts_sac,
-    color=['steelblue'] * len(couts_finaux) + ['coral'] * len(couts_sac)
-)
-plt.axhline(min(couts_finaux), color='steelblue', linestyle='--', linewidth=1, label=f'Tabou min = {min(couts_finaux):.1f}')
-plt.axhline(min(couts_sac), color='coral', linestyle='--', linewidth=1, label=f'Sac à dos min = {min(couts_sac):.1f}')
-plt.ylabel("Coût de la solution")
-plt.title("Comparaison multi-start tabou vs multi-start sac à dos")
-plt.legend()
+print("\n" + "=" * 50)
+print("COMPARAISON GLOBALE")
+print("=" * 50)
+
+# On génère NB_RESTARTS solutions glouton identiques comme base commune
+NB_RESTARTS = 5
+
+couts_initiaux_communs = []
+couts_glouton_final = []
+couts_tabou_final = []
+couts_recuit_final = []
+couts_genetique_final = []
+
+for i in range(NB_RESTARTS):
+    sol_init = glouton(G, nb_vehicules=3, k_rcl=3)
+    cout_init = cout_solution(G, sol_init)
+    
+    if cout_init == float('inf'):
+        continue
+
+    couts_initiaux_communs.append(cout_init)
+
+    # Glouton : pas d'optimisation, final = initial
+    couts_glouton_final.append(cout_init)
+
+    # Tabou
+    sol_tabou, _ = recherche_tabou(G, sol_init, taille_tabou=20, iter_sans_amelioration_max=50)
+    couts_tabou_final.append(cout_solution(G, sol_tabou))
+
+    # Recuit
+    sol_recuit, _ = recuit_simule(G, sol_init)
+    couts_recuit_final.append(cout_solution(G, sol_recuit))
+
+    # Génétique (repart de zéro, pas de solution initiale glouton)
+    best_gen, cout_gen = genetic_algorithm_vrp_advanced(G, num_vehicles=3, pop_size=50, generations=50)
+    couts_genetique_final.append(cout_gen)
+
+    print(f"Restart {i+1}/{NB_RESTARTS} | Init: {cout_init:.1f} | "
+          f"Glouton: {couts_glouton_final[-1]:.1f} | "
+          f"Tabou: {couts_tabou_final[-1]:.1f} | "
+          f"Recuit: {couts_recuit_final[-1]:.1f} | "
+          f"Génétique: {couts_genetique_final[-1]:.1f}")
+
+restarts = list(range(1, len(couts_initiaux_communs) + 1))
+
+COULEURS = {
+    'init':      '#95a5a6',
+    'glouton':   '#e67e22',
+    'tabou':     '#2980b9',
+    'recuit':    '#27ae60',
+    'genetique': '#8e44ad',
+}
+
+fig, axes = plt.subplots(1, 2, figsize=(16, 6))
+fig.suptitle("Comparaison des 4 approches — même point de départ glouton", fontsize=14, fontweight='bold')
+
+# ── Graphique 1 : évolution par restart ──────────────────────
+ax1 = axes[0]
+ax1.plot(restarts, couts_initiaux_communs, 'o--', color=COULEURS['init'],
+         linewidth=2, markersize=7, label='Point de départ (glouton brut)')
+ax1.plot(restarts, couts_glouton_final,    's-',  color=COULEURS['glouton'],
+         linewidth=2, markersize=7, label='Glouton (pas d\'optimisation)')
+ax1.plot(restarts, couts_tabou_final,      's-',  color=COULEURS['tabou'],
+         linewidth=2, markersize=7, label='Recherche Tabou')
+ax1.plot(restarts, couts_recuit_final,     's-',  color=COULEURS['recuit'],
+         linewidth=2, markersize=7, label='Recuit Simulé')
+ax1.plot(restarts, couts_genetique_final,  's-',  color=COULEURS['genetique'],
+         linewidth=2, markersize=7, label='Algorithme Génétique')
+
+ax1.set_xlabel("Numéro du restart", fontsize=11)
+ax1.set_ylabel("Coût de la solution", fontsize=11)
+ax1.set_title("Coût par restart", fontsize=12)
+ax1.legend(fontsize=9)
+ax1.grid(True, alpha=0.3)
+ax1.set_xticks(restarts)
+
+# ── Graphique 2 : boîte à moustaches ─────────────────────────
+ax2 = axes[1]
+data = [
+    couts_initiaux_communs,
+    couts_glouton_final,
+    couts_tabou_final,
+    couts_recuit_final,
+    couts_genetique_final,
+]
+labels = ['Départ\n(glouton brut)', 'Glouton\n(final)', 'Tabou', 'Recuit\nSimulé', 'Génétique']
+colors = [COULEURS['init'], COULEURS['glouton'], COULEURS['tabou'], COULEURS['recuit'], COULEURS['genetique']]
+
+bp = ax2.boxplot(data, patch_artist=True, medianprops=dict(color='black', linewidth=2))
+for patch, color in zip(bp['boxes'], colors):
+    patch.set_facecolor(color)
+    patch.set_alpha(0.8)
+
+# Annoter la médiane de chaque boîte
+for i, d in enumerate(data):
+    mediane = sorted(d)[len(d) // 2]
+    ax2.text(i + 1, mediane, f'{mediane:.0f}', ha='center', va='bottom',
+             fontsize=9, fontweight='bold', color='black')
+
+ax2.set_xticklabels(labels, fontsize=10)
+ax2.set_ylabel("Coût de la solution", fontsize=11)
+ax2.set_title("Distribution des coûts sur tous les restarts", fontsize=12)
+ax2.grid(True, alpha=0.3, axis='y')
+
+plt.tight_layout()
 plt.show()
+
+# ── Résumé texte ──────────────────────────────────────────────
+print("\n" + "=" * 55)
+print(f"{'Méthode':<20} {'Min':>8} {'Moy':>8} {'Max':>8} {'Gain moy %':>10}")
+print("=" * 55)
+
+moy_init = sum(couts_initiaux_communs) / len(couts_initiaux_communs)
+
+for nom, couts in [
+    ("Départ (glouton)", couts_initiaux_communs),
+    ("Glouton final",    couts_glouton_final),
+    ("Tabou",            couts_tabou_final),
+    ("Recuit Simulé",    couts_recuit_final),
+    ("Génétique",        couts_genetique_final),
+]:
+    moy = sum(couts) / len(couts)
+    gain = (moy_init - moy) / moy_init * 100
+    print(f"{nom:<20} {min(couts):>8.1f} {moy:>8.1f} {max(couts):>8.1f} {gain:>+9.1f}%")
