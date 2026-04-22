@@ -121,36 +121,6 @@ def glouton(G, nb_vehicules, k_rcl=3):
     return tournees
 
 
-# Affichage
-
-G = random_graph(40, k_voisins=3, taux_fermeture=0.1, taux_surcout=0.08, complet=True)
-
-couleurs = []
-for node in G.nodes():
-    if node == 0:
-        couleurs.append('red')
-    else:
-        couleurs.append('white')
-
-aretes_normales = [(i, j) for (i, j) in G.edges() if not G[i][j]['close'] and not G[i][j]['surcout']]
-aretes_fermees = [(i, j) for (i, j) in G.edges() if G[i][j]['close']]
-aretes_surcout = [(i, j) for (i, j) in G.edges() if G[i][j]['surcout']]
-
-plt.figure(figsize=(12, 8))
-pos = nx.get_node_attributes(G, 'pos')
-
-nx.draw_networkx_edges(G, pos, edgelist=aretes_normales, edge_color='black', width=1)
-nx.draw_networkx_edges(G, pos, edgelist=aretes_fermees, edge_color='red', width=1.5, style='dashed')
-nx.draw_networkx_edges(G, pos, edgelist=aretes_surcout, edge_color='orange', width=2)
-nx.draw_networkx_nodes(G, pos, node_color=couleurs, node_size=300, edgecolors='black')
-nx.draw_networkx_labels(G, pos, font_size=9)
-
-labels_cout = {(i, j): f"{G[i][j]['cout']:.0f}" for (i, j) in G.edges() if not G[i][j]['close']}
-nx.draw_networkx_edge_labels(G, pos, edge_labels=labels_cout, font_size=7)
-
-plt.show()
-
-
 def recherche_tabou(G, solution_initiale, taille_tabou, iter_sans_amelioration_max):
     nb_iter = 0
     liste_tabou = deque(maxlen=taille_tabou)
@@ -233,6 +203,25 @@ def cout_solution(G, solution):
     return total
 
 
+def multi_start_sac_a_dos(G, nb_restarts, m=3, k_rcl=3):
+    meilleure_globale = None
+    cout_meilleure_globale = float('inf')
+    couts_finaux = []
+
+    for restart in range(nb_restarts):
+        solution = glouton(G, m, k_rcl=k_rcl)
+        cout = cout_solution(G, solution)
+        couts_finaux.append(cout)
+
+        print(f"Restart {restart + 1}/{nb_restarts} : coût initial = {cout:.2f}")
+
+        if cout < cout_meilleure_globale:
+            meilleure_globale = solution
+            cout_meilleure_globale = cout
+
+    return meilleure_globale, couts_finaux
+
+
 def multi_start_tabou(G, nb_restarts, taille_tabou, iter_max, m=3, k_rcl=3):
     meilleure_globale = None
     cout_meilleure_globale = float('inf')
@@ -258,9 +247,60 @@ def multi_start_tabou(G, nb_restarts, taille_tabou, iter_max, m=3, k_rcl=3):
     return meilleure_globale, historiques, couts_finaux
 
 
+# Affichage
+
+G = random_graph(40, k_voisins=3, taux_fermeture=0.1, taux_surcout=0.08, complet=True)
+
+couleurs = []
+for node in G.nodes():
+    if node == 0:
+        couleurs.append('red')
+    else:
+        couleurs.append('white')
+
+aretes_normales = [(i, j) for (i, j) in G.edges() if not G[i][j]['close'] and not G[i][j]['surcout']]
+aretes_fermees = [(i, j) for (i, j) in G.edges() if G[i][j]['close']]
+aretes_surcout = [(i, j) for (i, j) in G.edges() if G[i][j]['surcout']]
+
+plt.figure(figsize=(12, 8))
+pos = nx.get_node_attributes(G, 'pos')
+
+nx.draw_networkx_edges(G, pos, edgelist=aretes_normales, edge_color='black', width=1)
+nx.draw_networkx_edges(G, pos, edgelist=aretes_fermees, edge_color='red', width=1.5, style='dashed')
+nx.draw_networkx_edges(G, pos, edgelist=aretes_surcout, edge_color='orange', width=2)
+nx.draw_networkx_nodes(G, pos, node_color=couleurs, node_size=300, edgecolors='black')
+nx.draw_networkx_labels(G, pos, font_size=9)
+
+labels_cout = {(i, j): f"{G[i][j]['cout']:.0f}" for (i, j) in G.edges() if not G[i][j]['close']}
+nx.draw_networkx_edge_labels(G, pos, edge_labels=labels_cout, font_size=7)
+
+plt.show()
+
+print("\n" + "=" * 50)
+print("MULTI-START SAC À DOS")
+print("=" * 50)
+
+# ============================================================
+# MULTI-START SAC À DOS (baseline glouton pur)
+# ============================================================
+
+meilleure_sac, couts_sac = multi_start_sac_a_dos(G, nb_restarts=5, m=3, k_rcl=3)
+
+print(f"\n=== RÉSULTATS SAC À DOS ===")
+print(f"Coût minimum trouvé : {min(couts_sac):.2f}")
+print(f"Coût maximum trouvé : {max(couts_sac):.2f}")
+print(f"Coût moyen          : {sum(couts_sac)/len(couts_sac):.2f}")
+print(f"\nMeilleure solution :")
+for k, tournee in enumerate(meilleure_sac, start=1):
+    print(f"  Véhicule {k} : {tournee}")
+
 # ============================================================
 # MULTI-START DU TABOU
 # ============================================================
+
+print("=" * 50)
+print("MULTI-START TABOU")
+print("=" * 50)
 
 meilleure, historiques, couts_finaux = multi_start_tabou(
     G,
@@ -271,7 +311,7 @@ meilleure, historiques, couts_finaux = multi_start_tabou(
     k_rcl=3
 )
 
-print(f"\n=== RÉSULTATS ===")
+print(f"\n=== RÉSULTATS TABOU ===")
 print(f"Coût minimum trouvé : {min(couts_finaux):.2f}")
 print(f"Coût maximum trouvé : {max(couts_finaux):.2f}")
 print(f"Coût moyen          : {sum(couts_finaux)/len(couts_finaux):.2f}")
@@ -287,4 +327,22 @@ plt.ylabel("Meilleur coût")
 plt.title("Convergence du multi-start tabou")
 plt.legend()
 plt.grid(True)
+plt.show()
+
+# ============================================================
+# COMPARAISON (les deux variables sont maintenant définies)
+# ============================================================
+
+plt.figure(figsize=(10, 5))
+plt.bar(
+    [f"T{i+1}" for i in range(len(couts_finaux))] +
+    [f"S{i+1}" for i in range(len(couts_sac))],
+    couts_finaux + couts_sac,
+    color=['steelblue'] * len(couts_finaux) + ['coral'] * len(couts_sac)
+)
+plt.axhline(min(couts_finaux), color='steelblue', linestyle='--', linewidth=1, label=f'Tabou min = {min(couts_finaux):.1f}')
+plt.axhline(min(couts_sac), color='coral', linestyle='--', linewidth=1, label=f'Sac à dos min = {min(couts_sac):.1f}')
+plt.ylabel("Coût de la solution")
+plt.title("Comparaison multi-start tabou vs multi-start sac à dos")
+plt.legend()
 plt.show()
