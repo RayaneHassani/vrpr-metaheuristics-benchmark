@@ -354,6 +354,78 @@ def genetic_algorithm_vrp_advanced(G, num_vehicles, pop_size=50, generations=100
     best = min(population, key=lambda x: fitness(x))
     return best, fitness(best)
 
+def recuit_simule(G, solution_initiale, T_initial=100.0, T_final=0.01, alpha=0.99, iter_par_palier=50):
+    """
+    Implémentation de l'algorithme du Recuit Simulé pour le VRP.
+    """
+    solution_courante = copy.deepcopy(solution_initiale)
+    meilleure_globale = copy.deepcopy(solution_initiale)
+    
+    cout_courant = cout_solution(G, solution_courante)
+    valeur_meilleure_globale = cout_courant
+    
+    T = T_initial
+    historique = [valeur_meilleure_globale]
+    
+    while T > T_final:
+        for _ in range(iter_par_palier):
+            # Générer un voisin aléatoire (on réutilise ta logique de voisinage mais un seul à la fois)
+            voisins = voisinage(solution_courante)
+            if not voisins:
+                continue
+                
+            voisin = random.choice(voisins)
+            val_voisin = cout_solution(G, voisin)
+            
+            # Si le voisin est meilleur, on l'accepte. 
+            # Sinon, on l'accepte avec une probabilité dépendante de T.
+            delta = val_voisin - cout_courant
+            
+            if delta < 0 or random.random() < math.exp(-delta / T):
+                solution_courante = voisin
+                cout_courant = val_voisin
+                
+                # Mise à jour du record absolu
+                if cout_courant < valeur_meilleure_globale:
+                    meilleure_globale = copy.deepcopy(solution_courante)
+                    valeur_meilleure_globale = cout_courant
+        
+        T *= alpha  # Refroidissement géométrique
+        historique.append(valeur_meilleure_globale)
+        
+    return meilleure_globale, historique
+
+def multi_start_recuit(G, nb_restarts, m=3, k_rcl=3):
+    meilleure_globale = None
+    cout_meilleure_globale = float('inf')
+    historiques = []
+    couts_finaux = []
+
+    print("\n" + "=" * 50)
+    print("MULTI-START RECUIT SIMULÉ")
+    print("=" * 50)
+
+    for restart in range(nb_restarts):
+        sol_init = glouton(G, m, k_rcl=k_rcl)
+        # On s'assure que la solution de départ n'est pas infinie
+        if cout_solution(G, sol_init) == float('inf'):
+            continue
+            
+        meilleure, historique = recuit_simule(G, sol_init)
+        cout_final = cout_solution(G, meilleure)
+        
+        historiques.append(historique)
+        couts_finaux.append(cout_final)
+        
+        print(f"Restart {restart + 1}/{nb_restarts} : coût final = {cout_final:.2f}")
+        
+        if cout_final < cout_meilleure_globale:
+            meilleure_globale = meilleure
+            cout_meilleure_globale = cout_final
+            
+    return meilleure_globale, historiques, couts_finaux
+
+
 # Affichage
 
 G = random_graph(40, k_voisins=3, taux_fermeture=0.1, taux_surcout=0.08, complet=True)
@@ -447,6 +519,20 @@ plt.title("Convergence du multi-start tabou")
 plt.legend()
 plt.grid(True)
 plt.show()
+
+
+
+# ============================================================
+# MULTI-START RECUIT SIMULE
+# ============================================================
+
+meilleure_rs, historiques_rs, couts_rs = multi_start_recuit(G, nb_restarts=5, m=3)
+
+print(f"\n=== RÉSULTATS RECUIT SIMULÉ ===")
+print(f"Coût minimum trouvé : {min(couts_rs):.2f}")
+print(f"Coût moyen          : {sum(couts_rs)/len(couts_rs):.2f}")
+for k, tournee in enumerate(meilleure_rs, start=1):
+    print(f"  Véhicule {k} : {tournee}")
 
 # ============================================================
 # COMPARAISON (les deux variables sont maintenant définies)
