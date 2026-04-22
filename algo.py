@@ -246,6 +246,113 @@ def multi_start_tabou(G, nb_restarts, taille_tabou, iter_max, m=3, k_rcl=3):
 
     return meilleure_globale, historiques, couts_finaux
 
+def genetic_algorithm_vrp_advanced(G, num_vehicles, pop_size=50, generations=100, taux_mutation=0.2):
+    # --- 1. Vérification de la faisabilité ---
+    # Chaque véhicule doit pouvoir sortir et revenir au dépôt (nœud 0)
+    # Note : G.degree(0) compte le nombre d'arêtes connectées au dépôt.
+    if G.degree(0) < num_vehicles * 2:
+        raise ValueError(f"Problème insoluble : Le dépôt a un degré de {G.degree(0)}, "
+                         f"mais il faut au moins {num_vehicles * 2} arêtes pour {num_vehicles} véhicules.")
+    
+    nodes = [n for n in G.nodes if n != 0]
+    
+    # --- 2. Fonctions de Coût ---
+    def get_edge_cost(u, v):
+        if not G.has_edge(u, v) or G[u][v].get('close', False):
+            return float('inf')
+        
+        return G[u][v].get('cout', 1)
+    
+    def fitness(individual):
+        total_cost = 0
+        for route in individual:
+            if not route: continue
+            
+            # Trajet : Dépôt -> Clients -> Dépôt
+            full_path = [0] + route + [0]
+            route_cost = 0
+            for i in range(len(full_path) - 1):
+                cost = get_edge_cost(full_path[i], full_path[i+1])
+                if cost == float('inf'): return float('inf')
+                route_cost += cost
+            total_cost += route_cost
+        return total_cost
+    
+    def chromosome_pratiquable(individual):
+        for route in individual:
+            if not route:
+                continue
+            
+            # Trajet : Dépôt -> Clients -> Dépôt
+            full_path = [0] + route + [0]
+            for i in range(len(full_path) - 1):
+                u = full_path[i]
+                v = full_path[i+1]
+                if not G.has_edge(u, v) or G[u][v].get('close', False):
+                    return False
+        return True
+    
+    # --- 3. Initialisation de la Population ---
+    # Chaque individu est une liste de m sous-listes
+    def create_individual():
+        shuffled = random.sample(nodes, len(nodes))
+        # Découpe aléatoire en m segments pour varier les tailles de tournées
+        splits = sorted(random.sample(range(1, len(nodes)), num_vehicles))
+        return [list(x) for x in np.split(shuffled, splits)]
+    
+    population = [create_individual() for _ in range(pop_size)]
+    
+    # --- 4. Boucle Génétique ---
+    for gen in range(generations):
+        # Tri par fitness
+        population = sorted(population, key=lambda x: fitness(x))
+        
+        # Garder le meilleur (Élitisme)
+        new_gen = population[:2]
+        
+        while len(new_gen) < pop_size:
+            # Sélection par tournoi
+            parent1, parent2 = random.sample(population[:pop_size//2], 2)
+            
+            # Crossover simplifié (Échange de routes entières entre véhicules)
+            # Pour respecter "chaque sommet une seule fois", on ré-aplatit et on croise
+            flat_p1 = [item for sublist in parent1 for item in sublist]
+            flat_p2 = [item for sublist in parent2 for item in sublist]
+            
+            # Ordered Crossover (OX) sur la version plate
+            start, end = sorted(random.sample(range(len(nodes)), 2))
+            child_flat = [None] * len(nodes)
+            child_flat[start:end] = flat_p1[start:end]
+            
+            rem = [n for n in flat_p2 if n not in child_flat]
+            cursor = 0
+            for i in range(len(child_flat)):
+                if child_flat[i] is None:
+                    child_flat[i] = rem[cursor]
+                    cursor += 1
+            
+            # Re-découpage en sous-chromosomes
+            # On conserve les longueurs des routes du parent 1
+            child = []
+            curr = 0
+            for route in parent1:
+                child.append(child_flat[curr:curr+len(route)])
+                curr += len(route)
+            
+            # Mutation : Échange de deux villes entre deux véhicules
+            if random.random() < taux_mutation:
+                v1, v2 = random.sample(range(num_vehicles), 2)
+                if child[v1] and child[v2]:
+                    idx1 = random.randrange(len(child[v1]))
+                    idx2 = random.randrange(len(child[v2]))
+                    child[v1][idx1], child[v2][idx2] = child[v2][idx2], child[v1][idx1]
+            
+            new_gen.append(child)
+        
+        population = new_gen
+    
+    best = min(population, key=lambda x: fitness(x))
+    return best, fitness(best)
 
 # Affichage
 
@@ -293,6 +400,18 @@ print(f"Coût moyen          : {sum(couts_sac)/len(couts_sac):.2f}")
 print(f"\nMeilleure solution :")
 for k, tournee in enumerate(meilleure_sac, start=1):
     print(f"  Véhicule {k} : {tournee}")
+
+# ============================================================
+# MULTI-START SAC À DOS (baseline glouton pur)
+# ============================================================
+
+best_routes, total_cost = genetic_algorithm_vrp_advanced(G, num_vehicles=3, pop_size=200)
+
+print(f"\n=== RÉSULTATS GÉNÉTIQUE ===")
+print(f"Coût total : {total_cost:.2f}")
+print(f"\nMeilleure solution :")
+for k, tournee in enumerate(best_routes, start=1):
+    print(f"  Véhicule {k} : 0 -> {' -> '.join(map(str, tournee))} -> 0")
 
 # ============================================================
 # MULTI-START DU TABOU
