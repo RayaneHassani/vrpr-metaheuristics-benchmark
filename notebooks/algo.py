@@ -143,7 +143,7 @@ def recherche_tabou(G, solution_initiale, taille_tabou, iter_sans_amelioration_m
         valeur_meilleure = float('inf')
         meilleure = None
 
-        for voisin in voisinage(solution_courante):
+        for voisin in voisinage(G, solution_courante):
             voisin_hashable = tuple(tuple(t) for t in voisin)
             val_voisin = cout_solution(G, voisin)
 
@@ -171,7 +171,7 @@ def recherche_tabou(G, solution_initiale, taille_tabou, iter_sans_amelioration_m
 
     return meilleure_globale, historique
 
-def voisinage(solution):
+def voisinage(G, solution):
     """Génère les solutions voisines par swap intra et relocate."""
     voisins = []
 
@@ -226,14 +226,14 @@ def multi_start_glouton(G, nb_restarts, m=3, k_rcl=3):
 
     return meilleure_globale, couts_finaux
 
-def multi_start_tabou(G, nb_restarts, taille_tabou, iter_max, m=3, k_rcl=3):
+def multi_start_tabou(G, nb_restarts, taille_tabou, iter_max, vehicule=3, k_rcl=3):
     meilleure_globale = None
     cout_meilleure_globale = float('inf')
     historiques = []
     couts_finaux = []
 
     for restart in range(nb_restarts):
-        solution_initiale = glouton(G, m, k_rcl=k_rcl)
+        solution_initiale = glouton(G, vehicule, k_rcl=k_rcl)
         cout_initial = cout_solution(G, solution_initiale)
 
         meilleure, historique = recherche_tabou(G, solution_initiale, taille_tabou, iter_max)
@@ -385,7 +385,7 @@ def recuit_simule(G, solution_initiale, T_initial=100.0, T_final=0.01, alpha=0.9
     while T > T_final:
         for _ in range(iter_par_palier):
             # Générer un voisin aléatoire (on réutilise ta logique de voisinage mais un seul à la fois)
-            voisins = voisinage(solution_courante)
+            voisins = voisinage(G, solution_courante)
             if not voisins:
                 continue
                 
@@ -504,7 +504,7 @@ meilleure, historiques, couts_finaux = multi_start_tabou(
     nb_restarts=5,
     taille_tabou=20,
     iter_max=50,
-    m=3,
+    vehicule=3,
     k_rcl=3
 )
 
