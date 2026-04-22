@@ -365,272 +365,76 @@ def genetic_algorithm_vrp_advanced(G, num_vehicles, pop_size=50, generations=100
     best = min(population, key=lambda x: fitness(x))
     return best, fitness(best)
 
-
-
-# RECUIT SIMULÉ
-
-def build_distance_matrix(G: nx.Graph) -> tuple[np.ndarray, list[int]]:
+def recuit_simule(G, solution_initiale, T_initial=100.0, T_final=0.01, alpha=0.99, iter_par_palier=50):
     """
-    Construit la matrice des plus courts chemins sur les arêtes ouvertes.
-
-    Retourne
-    --------
-    dist_matrix : np.ndarray, shape (n, n)
-        dist_matrix[i][j] = coût du plus court chemin entre i et j.
-        np.inf si i et j ne sont pas connectés.
-    reachable   : list[int]
-        Indices des nœuds atteignables depuis le dépôt (nœud 0),
-        dépôt inclus en position 0.
+    Implémentation de l'algorithme du Recuit Simulé pour le VRP.
     """
-    # Sous-graphe sans les arêtes fermées
-    G_open = nx.Graph()
-    G_open.add_nodes_from(G.nodes())
-    for (i, j, data) in G.edges(data=True):
-        if not data.get('close', False):
-            G_open.add_edge(i, j, weight=data['cout'])
-
-    n = G.number_of_nodes()
-    dist_matrix = np.full((n, n), np.inf)
-    np.fill_diagonal(dist_matrix, 0.0)
-
-    # Dijkstra depuis chaque nœud
-    for src in G_open.nodes():
-        lengths = nx.single_source_dijkstra_path_length(
-            G_open, src, weight='weight'
-        )
-        for dst, d in lengths.items():
-            dist_matrix[src][dst] = d
-
-    # Nœuds atteignables depuis le dépôt
-    reachable = [j for j in range(n) if dist_matrix[0][j] < np.inf]
-    unreachable = [j for j in range(1, n) if j not in reachable]
-
-    if unreachable:
-        print(f"⚠ Nœuds injoignables depuis le dépôt (exclus du VRP) : {unreachable}")
-
-    return dist_matrix, reachable
-
-
-@dataclass
-class VRPInstance:
-    G: nx.Graph
-    dist_matrix: np.ndarray    # shape (n_nodes, n_nodes), distances effectives
-    clients: list[int]         # indices des clients atteignables (sans le dépôt)
-    n_vehicles: int
-
-    def effective_dist(self, i: int, j: int) -> float:
-        """Distance effective (plus court chemin) entre i et j."""
-        return float(self.dist_matrix[i][j])
-
-    def cost(self, solution: list[list[int]]) -> float:
-        """
-        Coût total de la solution.
-        Une route = dépôt(0) → c1 → c2 → ... → dépôt(0).
-        Coût = somme des distances effectives sur chaque arc.
-        """
-        total = 0.0
-        for route in solution:
-            if not route:
+    solution_courante = copy.deepcopy(solution_initiale)
+    meilleure_globale = copy.deepcopy(solution_initiale)
+    
+    cout_courant = cout_solution(G, solution_courante)
+    valeur_meilleure_globale = cout_courant
+    
+    T = T_initial
+    historique = [valeur_meilleure_globale]
+    
+    while T > T_final:
+        for _ in range(iter_par_palier):
+            # Générer un voisin aléatoire (on réutilise ta logique de voisinage mais un seul à la fois)
+            voisins = voisinage(solution_courante)
+            if not voisins:
                 continue
-            total += self.effective_dist(0, route[0])
-            for a, b in zip(route, route[1:]):
-                total += self.effective_dist(a, b)
-            total += self.effective_dist(route[-1], 0)
-        return total
+                
+            voisin = random.choice(voisins)
+            val_voisin = cout_solution(G, voisin)
+            
+            # Si le voisin est meilleur, on l'accepte. 
+            # Sinon, on l'accepte avec une probabilité dépendante de T.
+            delta = val_voisin - cout_courant
+            
+            if delta < 0 or random.random() < math.exp(-delta / T):
+                solution_courante = voisin
+                cout_courant = val_voisin
+                
+                # Mise à jour du record absolu
+                if cout_courant < valeur_meilleure_globale:
+                    meilleure_globale = copy.deepcopy(solution_courante)
+                    valeur_meilleure_globale = cout_courant
+        
+        T *= alpha  # Refroidissement géométrique
+        historique.append(valeur_meilleure_globale)
+        
+    return meilleure_globale, historique
 
-    def is_feasible(self, solution: list[list[int]]) -> bool:
-        """
-        Vérifie que tous les arcs d'une solution sont finiment coûteux
-        (i.e. tous les trajets existent dans le sous-graphe ouvert).
-        """
-        for route in solution:
-            if not route:
-                continue
-            if self.effective_dist(0, route[0]) == np.inf:
-                return False
-            for a, b in zip(route, route[1:]):
-                if self.effective_dist(a, b) == np.inf:
-                    return False
-            if self.effective_dist(route[-1], 0) == np.inf:
-                return False
-        return True
+def multi_start_recuit(G, nb_restarts, m=3, k_rcl=3):
+    meilleure_globale = None
+    cout_meilleure_globale = float('inf')
+    historiques = []
+    couts_finaux = []
 
+    print("\n" + "=" * 50)
+    print("MULTI-START RECUIT SIMULÉ")
+    print("=" * 50)
 
-def make_vrp_instance(G: nx.Graph, n_vehicles: int) -> VRPInstance:
-    dm, reachable = build_distance_matrix(G)
-    clients = reachable[1:]
-    return VRPInstance(G=G, dist_matrix=dm, clients=clients, n_vehicles=n_vehicles)
-
-
-def initial_solution(inst: VRPInstance, seed: int = 0) -> list[list[int]]:
-    """
-    Distribution aléatoire des clients atteignables entre les véhicules.
-    Seuls les clients de inst.clients sont utilisés (injoignables déjà exclus).
-    """
-    rng = random.Random(seed)
-    clients = inst.clients[:]
-    rng.shuffle(clients)
-    routes = [[] for _ in range(inst.n_vehicles)]
-    for i, c in enumerate(clients):
-        routes[i % inst.n_vehicles].append(c)
-    return routes
-
-def two_opt_intra(
-    routes: list[list[int]], inst: VRPInstance, rng: random.Random
-) -> list[list[int]] | None:
-    """Inverse un sous-chemin dans une route. Retourne None si infaisable."""
-    r = copy.deepcopy(routes)
-    ri = rng.randrange(len(r))
-    if len(r[ri]) < 2:
-        return None
-    i, j = sorted(rng.sample(range(len(r[ri])), 2))
-    r[ri][i:j+1] = r[ri][i:j+1][::-1]
-    return r if inst.is_feasible(r) else None
-
-
-def relocate(
-    routes: list[list[int]], inst: VRPInstance, rng: random.Random
-) -> list[list[int]] | None:
-    """Déplace un client vers une autre route. Retourne None si infaisable."""
-    r = copy.deepcopy(routes)
-    nv = len(r)
-    non_empty = [i for i in range(nv) if r[i]]
-    if not non_empty:
-        return None
-    ri = rng.choice(non_empty)
-    pos_from = rng.randrange(len(r[ri]))
-    client = r[ri].pop(pos_from)
-    rj = rng.choice([j for j in range(nv) if j != ri])
-    pos_to = rng.randint(0, len(r[rj]))
-    r[rj].insert(pos_to, client)
-    return r if inst.is_feasible(r) else None
-
-
-def swap_inter(
-    routes: list[list[int]], inst: VRPInstance, rng: random.Random
-) -> list[list[int]] | None:
-    """Échange deux clients entre deux routes. Retourne None si infaisable."""
-    r = copy.deepcopy(routes)
-    nv = len(r)
-    non_empty = [i for i in range(nv) if r[i]]
-    if len(non_empty) < 2:
-        return None
-    ri, rj = rng.sample(non_empty, 2)
-    pi = rng.randrange(len(r[ri]))
-    pj = rng.randrange(len(r[rj]))
-    r[ri][pi], r[rj][pj] = r[rj][pj], r[ri][pi]
-    return r if inst.is_feasible(r) else None
-
-
-OPERATORS = [two_opt_intra, relocate, swap_inter]
-OPERATOR_WEIGHTS = [0.4, 0.35, 0.25]
-
-
-def get_neighbor(
-    routes: list[list[int]], inst: VRPInstance, rng: random.Random,
-    max_attempts: int = 20
-) -> list[list[int]] | None:
-    """
-    Tente de générer un voisin faisable.
-    Essaie plusieurs opérateurs jusqu'à trouver une solution valide
-    ou épuiser max_attempts tentatives.
-    """
-    for _ in range(max_attempts):
-        op = rng.choices(OPERATORS, weights=OPERATOR_WEIGHTS, k=1)[0]
-        result = op(routes, inst, rng)
-        if result is not None:
-            return result
-    return None
-
-
-@dataclass
-class SAResult:
-    best_solution: list[list[int]]
-    best_cost: float
-    history_cost: list[float]
-    history_temp: list[float]
-    n_accepted: int
-    n_rejected: int
-    n_infeasible: int           # tentatives rejetées pour infaisabilité
-    elapsed: float
-
-
-def simulated_annealing(
-    inst: VRPInstance,
-    T0: float = 200.0,
-    alpha: float = 0.995,
-    T_min: float = 0.1,
-    iter_per_temp: int = 100,
-    seed: int = 0,
-    verbose: bool = True,
-) -> SAResult:
-    """
-    Recuit simulé pour le VRP sur graphe contraint.
-
-    Différences vs graphe complet :
-    - get_neighbor peut retourner None (voisin infaisable) → on saute
-    - inst.cost utilise les distances effectives (plus courts chemins)
-    """
-    rng = random.Random(seed)
-    t_start = time.perf_counter()
-
-    current = initial_solution(inst, seed=seed)
-    current_cost = inst.cost(current)
-    best = copy.deepcopy(current)
-    best_cost = current_cost
-
-    T = T0
-    history_cost, history_temp = [best_cost], [T]
-    n_accepted = n_rejected = n_infeasible = 0
-
-    while T > T_min:
-        for _ in range(iter_per_temp):
-            neighbor = get_neighbor(current, inst, rng)
-            if neighbor is None:
-                n_infeasible += 1
-                continue
-
-            neighbor_cost = inst.cost(neighbor)
-            delta = neighbor_cost - current_cost
-
-            # Règle de Metropolis
-            if delta < 0 or rng.random() < math.exp(-delta / T):
-                current = neighbor
-                current_cost = neighbor_cost
-                n_accepted += 1
-                if current_cost < best_cost:
-                    best = copy.deepcopy(current)
-                    best_cost = current_cost
-            else:
-                n_rejected += 1
-
-        T *= alpha
-        history_cost.append(best_cost)
-        history_temp.append(T)
-
-    elapsed = time.perf_counter() - t_start
-
-    if verbose:
-        total = n_accepted + n_rejected
-        print(f"Terminé en {elapsed:.2f}s  ({int((T0/T_min)**0.5)} paliers environ)")
-        print(f"Coût initial  : {history_cost[0]:.2f}")
-        print(f"Meilleur coût : {best_cost:.2f}")
-        print(f"Amélioration  : {(1 - best_cost/history_cost[0])*100:.1f}%")
-        print(f"Acceptées     : {n_accepted}/{total} ({100*n_accepted/max(total,1):.1f}%)")
-        print(f"Infaisables   : {n_infeasible} tentatives ignorées")
-
-    return SAResult(
-        best_solution=best,
-        best_cost=best_cost,
-        history_cost=history_cost,
-        history_temp=history_temp,
-        n_accepted=n_accepted,
-        n_rejected=n_rejected,
-        n_infeasible=n_infeasible,
-        elapsed=elapsed,
-    )
-
-
+    for restart in range(nb_restarts):
+        sol_init = glouton(G, m, k_rcl=k_rcl)
+        # On s'assure que la solution de départ n'est pas infinie
+        if cout_solution(G, sol_init) == float('inf'):
+            continue
+            
+        meilleure, historique = recuit_simule(G, sol_init)
+        cout_final = cout_solution(G, meilleure)
+        
+        historiques.append(historique)
+        couts_finaux.append(cout_final)
+        
+        print(f"Restart {restart + 1}/{nb_restarts} : coût final = {cout_final:.2f}")
+        
+        if cout_final < cout_meilleure_globale:
+            meilleure_globale = meilleure
+            cout_meilleure_globale = cout_final
+            
+    return meilleure_globale, historiques, couts_finaux
 
 
 # Affichage
@@ -681,18 +485,6 @@ for k, tournee in enumerate(meilleure_sac, start=1):
     print(f"  Véhicule {k} : {tournee}")
 
 # ============================================================
-# ALGO GENETIQUE
-# ============================================================
-
-best_routes, total_cost = genetic_algorithm_vrp_advanced(G, num_vehicles=3, pop_size=200)
-
-print(f"\n=== RÉSULTATS GÉNÉTIQUE ===")
-print(f"Coût total : {total_cost:.2f}")
-print(f"\nMeilleure solution :")
-for k, tournee in enumerate(best_routes, start=1):
-    print(f"  Véhicule {k} : 0 -> {' -> '.join(map(str, tournee))} -> 0")
-
-# ============================================================
 # MULTI-START DU TABOU
 # ============================================================
 
@@ -727,32 +519,29 @@ plt.legend()
 plt.grid(True)
 plt.show()
 
-
 # ============================================================
-# RECUIT SIMULE
+# ALGO GENETIQUE
 # ============================================================
 
-random.seed(7)
-G = random_graph(vertice_count=25, k_voisins=4, taux_fermeture=0.1, taux_surcout=0.08)
-inst = make_vrp_instance(G, n_vehicles=3)
+best_routes, total_cost = genetic_algorithm_vrp_advanced(G, num_vehicles=3, pop_size=200)
 
-print(f"Graphe : {G.number_of_nodes()} nœuds, {G.number_of_edges()} arêtes")
-print(f"Clients VRP : {len(inst.clients)}\n")
+print(f"\n=== RÉSULTATS GÉNÉTIQUE ===")
+print(f"Coût total : {total_cost:.2f}")
+print(f"\nMeilleure solution :")
+for k, tournee in enumerate(best_routes, start=1):
+    print(f"  Véhicule {k} : 0 -> {' -> '.join(map(str, tournee))} -> 0")
+    
+# ============================================================
+# MULTI-START RECUIT SIMULE
+# ============================================================
 
-result = simulated_annealing(
-    inst,
-    T0=300.0,
-    alpha=0.995,
-    T_min=0.1,
-    iter_per_temp=150,
-    seed=42,
-    verbose=True,
-)
+meilleure_rs, historiques_rs, couts_rs = multi_start_recuit(G, nb_restarts=5, m=3)
 
-print("\nMeilleure solution :")
-for i, route in enumerate(result.best_solution):
-    cost_r = inst.cost([route])
-    print(f"  Véhicule {i+1} : dépôt → {' → '.join(str(c) for c in route)} → dépôt   (coût : {cost_r:.2f})")
+print(f"\n=== RÉSULTATS RECUIT SIMULÉ ===")
+print(f"Coût minimum trouvé : {min(couts_rs):.2f}")
+print(f"Coût moyen          : {sum(couts_rs)/len(couts_rs):.2f}")
+for k, tournee in enumerate(meilleure_rs, start=1):
+    print(f"  Véhicule {k} : {tournee}")
 
 # ============================================================
 # COMPARAISON (les deux variables sont maintenant définies)
