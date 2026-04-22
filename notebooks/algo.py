@@ -595,7 +595,7 @@ for i in range(NB_RESTARTS):
     couts_recuit_final.append(cout_solution(G, sol_recuit))
 
     # Génétique (repart de zéro, pas de solution initiale glouton)
-    best_gen, cout_gen = genetic_algorithm_vrp_advanced(G, num_vehicles=3, pop_size=50, generations=50)
+    best_gen, cout_gen, initial = genetic_algorithm_vrp_advanced(G, num_vehicles=3, pop_size=200)
     couts_genetique_final.append(cout_gen)
 
     print(f"Restart {i+1}/{NB_RESTARTS} | Init: {cout_init:.1f} | "
