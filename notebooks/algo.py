@@ -304,7 +304,15 @@ def genetic_algorithm_vrp_advanced(G, num_vehicles, pop_size=50, generations=100
         splits = sorted(random.sample(range(1, len(nodes)), num_vehicles))
         return [list(x) for x in np.split(shuffled, splits)]
     
-    population = [create_individual() for _ in range(pop_size)]
+    population = list()
+    
+    while len(population) < pop_size:
+        chromosome = create_individual()
+        if fitness(chromosome) != float('inf'):
+            population.append(chromosome)
+    
+    cout_initial = list(map(fitness, population))
+    cout_initial = sum(cout_initial) / len(cout_initial)
     
     # --- 4. Boucle Génétique ---
     for gen in range(generations):
@@ -351,12 +359,15 @@ def genetic_algorithm_vrp_advanced(G, num_vehicles, pop_size=50, generations=100
                     idx2 = random.randrange(len(child[v2]))
                     child[v1][idx1], child[v2][idx2] = child[v2][idx2], child[v1][idx1]
             
+            if fitness(child) == float('inf'):
+                continue
+            
             new_gen.append(child)
         
         population = new_gen
     
     best = min(population, key=lambda x: fitness(x))
-    return best, fitness(best)
+    return best, fitness(best), cout_initial
 
 def recuit_simule(G, solution_initiale, T_initial=100.0, T_final=0.01, alpha=0.99, iter_par_palier=50):
     """
@@ -516,13 +527,18 @@ plt.grid(True)
 plt.show()
 
 # ============================================================
-# ALGO GENETIQUE
+# ALGO GÉNÉTIQUE
 # ============================================================
 
-best_routes, total_cost = genetic_algorithm_vrp_advanced(G, num_vehicles=3, pop_size=200)
+print("=" * 50)
+print("ALGORITHME GÉNÉTIQUE")
+print("=" * 50)
+
+best_routes, total_cost, initial_cost = genetic_algorithm_vrp_advanced(G, num_vehicles=3, pop_size=200)
 
 print(f"\n=== RÉSULTATS GÉNÉTIQUE ===")
-print(f"Coût total : {total_cost:.2f}")
+print(f"Coût initial : {initial_cost:.2f}")
+print(f"Coût final   : {total_cost:.2f}")
 print(f"\nMeilleure solution :")
 for k, tournee in enumerate(best_routes, start=1):
     print(f"  Véhicule {k} : 0 -> {' -> '.join(map(str, tournee))} -> 0")
