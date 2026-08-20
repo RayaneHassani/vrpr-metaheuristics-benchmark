@@ -1,5 +1,9 @@
 # VRPR — Vehicle Routing Problem with Restricted edges
 
+[![Smoke test](https://github.com/RayaneHassani/Projet_RO_G3/actions/workflows/smoke.yml/badge.svg)](https://github.com/RayaneHassani/Projet_RO_G3/actions/workflows/smoke.yml)
+[![Latest release](https://img.shields.io/github/v/release/RayaneHassani/Projet_RO_G3)](https://github.com/RayaneHassani/Projet_RO_G3/releases/latest)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 [🇬🇧 English](#english) · [🇫🇷 Français](#français)
 
 Operations Research project. We solve a multi-vehicle routing problem
