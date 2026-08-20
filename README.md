@@ -41,12 +41,17 @@ rely on metaheuristics that return good approximate solutions in reasonable time
 
 ### Result
 
-The **multi-start tabu search** offers the best quality/time trade-off in our
-experiments, recovering 29–35 % over the greedy baseline in under a second
-across all tested sizes. Simulated annealing reaches slightly better costs on
-larger instances but runs two orders of magnitude slower (108 s vs 0.8 s at
-30 cities); the genetic algorithm degrades as instances grow under limited
-population and generations.
+In our full experimental study (10 instances per size, 20 to 100 cities,
+tuned parameters), **tabu search and simulated annealing** are the most
+robust approaches: both recover 20–32 % over the greedy baseline, converging
+toward ~20 % on the largest instances. The **genetic algorithm** is
+competitive on small instances (+18.5 % at 20 cities) but collapses as
+instances grow, ending up *worse* than the greedy baseline itself (−43 % at
+100 cities) under a fixed population size and generation budget. Simulated
+annealing matches tabu search on solution quality but is far slower — two
+orders of magnitude in the notebook's quick comparison (108 s vs 0.8 s at
+30 cities) — making **multi-start tabu search** the best quality/time
+trade-off overall.
 
 ---
 
@@ -85,12 +90,29 @@ solutions approchées en temps raisonnable.
 
 ### Résultat
 
-Le **tabou multi-start** offre le meilleur rapport qualité/temps dans nos
-expériences, reprenant 29 à 35 % au glouton (baseline) en moins d'une seconde à
-toutes les tailles testées. Le recuit simulé atteint des coûts légèrement
-meilleurs sur les grandes instances mais est deux ordres de grandeur plus lent
-(108 s contre 0,8 s à 30 villes) ; l'algorithme génétique passe moins bien à
-l'échelle à population et nombre de générations limités.
+Dans notre étude complète (10 instances par taille, 20 à 100 villes,
+paramètres calibrés), la **recherche tabou et le recuit simulé** sont les
+approches les plus robustes : les deux reprennent 20 à 32 % au glouton
+(baseline), convergeant vers ~20 % sur les plus grandes instances.
+L'**algorithme génétique** est compétitif sur les petites instances
+(+18,5 % à 20 villes) mais s'effondre quand la taille augmente, finissant
+*pire* que le glouton lui-même (−43 % à 100 villes) à population et nombre
+de générations fixés. Le recuit simulé égale le tabou en qualité mais est
+bien plus lent — deux ordres de grandeur dans la comparaison rapide du
+notebook (108 s contre 0,8 s à 30 villes) — ce qui fait du **tabou
+multi-start** le meilleur rapport qualité/temps global.
+
+---
+
+## Results at a glance · Résultats en un coup d'œil
+
+![Quality gain of each metaheuristic over the greedy baseline, 20 to 100 cities](assets/gain-comparison.png)
+
+*Tabou = tabu search · Recuit = simulated annealing · Génétique = genetic
+algorithm. Full study, 10 instances per size, tuned parameters — see
+[`notebooks/final_nb.ipynb`](notebooks/final_nb.ipynb#s29) for the underlying
+data (this chart summarises a run whose figures aren't reproduced by a
+visible code cell in the notebook).*
 
 ---
 
@@ -190,6 +212,11 @@ cd src && python -m vrpr.experiments
 ## Authors · Auteurs
 
 Projet Recherche Opérationnelle — Groupe 3
+
+- [Rayane Hassani](https://github.com/RayaneHassani) — modelling, GRASP, benchmark, documentation, integration
+- [Antonin Mignot-Pilon](https://github.com/AntoninMignotPilon) — modelling, instance generator, first tabu search, benchmark
+- [Gabriel Roche](https://github.com/TheCrafteur2015) — modelling, genetic algorithm, benchmark
+- Michée Gondoue Kpan — modelling, simulated annealing, benchmark
 
 ## References · Références
 
