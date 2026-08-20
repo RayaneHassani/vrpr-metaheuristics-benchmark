@@ -2,7 +2,7 @@
 
 [🇬🇧 English](#english) · [🇫🇷 Français](#français)
 
-Operations Research project (group G3). We solve a multi-vehicle routing problem
+Operations Research project. We solve a multi-vehicle routing problem
 on a road network with **forbidden roads** (impassable edges) and **surcharged
 roads** (more expensive edges). From a single depot, every client must be visited
 exactly once while minimising total travel cost.
@@ -36,15 +36,17 @@ Two business constraints extend the classic VRP — hence the name **VRPR**
 ### Complexity
 
 The VRP **generalises the Travelling Salesman Problem** and is therefore
-**NP-hard** [3][5]. Exact solving is intractable beyond small instances, so we
+**NP-hard** [[3]](#ref-3)[[5]](#ref-5). Exact solving is intractable beyond small instances, so we
 rely on metaheuristics that return good approximate solutions in reasonable time.
 
 ### Result
 
-The **multi-start tabu search** is the most robust approach in our experiments,
-holding a 20–25 % quality gain over the greedy baseline across all tested sizes.
-Simulated annealing stays competitive on small instances; the genetic algorithm
-scales worse under limited population and generations.
+The **multi-start tabu search** offers the best quality/time trade-off in our
+experiments, recovering 29–35 % over the greedy baseline in under a second
+across all tested sizes. Simulated annealing reaches slightly better costs on
+larger instances but runs two orders of magnitude slower (108 s vs 0.8 s at
+30 cities); the genetic algorithm degrades as instances grow under limited
+population and generations.
 
 ---
 
@@ -77,17 +79,18 @@ Deux contraintes métier s'ajoutent au VRP classique — d'où le nom **VRPR**
 ### Complexité
 
 Le VRP **généralise le problème du voyageur de commerce (TSP)** et est donc
-**NP-difficile** [3][5]. Une résolution exacte est hors de portée au-delà de
+**NP-difficile** [[3]](#ref-3)[[5]](#ref-5). Une résolution exacte est hors de portée au-delà de
 petites instances : on a recours à des métaheuristiques fournissant de bonnes
 solutions approchées en temps raisonnable.
 
 ### Résultat
 
-Le **tabou multi-start** est l'approche la plus robuste dans nos expériences,
-maintenant un gain de qualité de 20 à 25 % sur le glouton (baseline) à toutes les
-tailles testées. Le recuit simulé reste compétitif sur les petites instances ;
-l'algorithme génétique passe moins bien à l'échelle à population et nombre de
-générations limités.
+Le **tabou multi-start** offre le meilleur rapport qualité/temps dans nos
+expériences, reprenant 29 à 35 % au glouton (baseline) en moins d'une seconde à
+toutes les tailles testées. Le recuit simulé atteint des coûts légèrement
+meilleurs sur les grandes instances mais est deux ordres de grandeur plus lent
+(108 s contre 0,8 s à 30 villes) ; l'algorithme génétique passe moins bien à
+l'échelle à population et nombre de générations limités.
 
 ---
 
@@ -186,33 +189,29 @@ cd src && python -m vrpr.experiments
 
 ## Authors · Auteurs
 
-Projet RO — Groupe 3 (G3)
-
-- Rayane Hassani
-- Antonin Mignot-Pilon
-- Michée Gondoué Kpan
+Projet Recherche Opérationnelle — Groupe 3
 
 ## References · Références
 
 | # | Référence |
 |---|-----------|
-| [1] | Land, A. H., & Doig, A. G. (1960). *An Automatic Method of Solving Discrete Programming Problems*. Econometrica, 28(3), 497–520. |
-| [2] | Toth, P., & Vigo, D. (Eds.) (2002). *The Vehicle Routing Problem*. SIAM Monographs on Discrete Mathematics and Applications, Philadelphia. |
-| [3] | Karp, R. M. (1972). *Reducibility among combinatorial problems*. In Miller & Thatcher (Eds.), *Complexity of Computer Computations* (pp. 85–103). Plenum Press. |
-| [4] | Dantzig, G. B., & Ramser, J. H. (1959). *The Truck Dispatching Problem*. Management Science, 6(1), 80–91. |
-| [5] | Lenstra, J. K., & Rinnooy Kan, A. H. G. (1981). *Complexity of vehicle routing and scheduling problems*. Networks, 11(2), 221–227. |
-| [6] | Bräysy, O., & Gendreau, M. (2001). *Metaheuristics for the Vehicle Routing Problem with Time Windows*. |
-| [7] | Muriyatmoko, D., Djunaidy, A., & Muklason, A. (2024). *Heuristics and Metaheuristics for Solving Capacitated Vehicle Routing Problem: An Algorithm Comparison*. Procedia Computer Science. |
-| [8] | Ashouri, M., & Yousefikhoshbakht, M. (2017). *A Combination of Meta-heuristic and Heuristic Algorithms for the VRP, OVRP and VRP with Simultaneous Pickup and Delivery*. BRAIN. |
-| [9] | Mahmudy, W. F., Widodo, A. W., & Haikal, A. H. (2024). *Challenges and Opportunities for Applying Meta-Heuristic Methods in Vehicle Routing Problems: A Review*. MDPI. |
-| [10] | Labadie, N., Prins, C., & Prodhon, C. (2016). *Metaheuristics for Vehicle Routing Problems*. Wiley. |
-| [11] | Clarke, G., & Wright, J. W. (1964). *Scheduling of Vehicles from a Central Depot to a Number of Delivery Points*. Operations Research, 12(4), 568–581. |
-| [12] | Feo, T. A., & Resende, M. G. C. (1995). *Greedy Randomized Adaptive Search Procedures*. Journal of Global Optimization, 6(2), 109–133. |
-| [13] | Glover, F. (1986). *Future Paths for Integer Programming and Links to Artificial Intelligence*. Computers & Operations Research, 13(5), 533–549. |
-| [14] | Satopaa, V., Albrecht, J., Irwin, D., & Raghavan, B. (2011). *Finding a "Kneedle" in a Haystack: Detecting Knee Points in System Behavior*. ICDCS Workshops. |
-| [15] | Kirkpatrick, S., Gelatt, C. D., & Vecchi, M. P. (1983). *Optimization by Simulated Annealing*. Science, 220(4598), 671–680. |
-| [16] | Potvin, J. Y. (1996). *Genetic Algorithms for the Traveling Salesman Problem*. Annals of Operations Research, 63(3), 337–370. |
-| [17] | Solomon, M. M. (1987). *Algorithms for the Vehicle Routing and Scheduling Problems with Time Window Constraints*. Operations Research, 35(2), 254–265. |
+| <a id="ref-1"></a>[1] | Land, A. H., & Doig, A. G. (1960). *An Automatic Method of Solving Discrete Programming Problems*. Econometrica, 28(3), 497–520. |
+| <a id="ref-2"></a>[2] | Toth, P., & Vigo, D. (Eds.) (2002). *The Vehicle Routing Problem*. SIAM Monographs on Discrete Mathematics and Applications, Philadelphia. |
+| <a id="ref-3"></a>[3] | Karp, R. M. (1972). *Reducibility among combinatorial problems*. In Miller & Thatcher (Eds.), *Complexity of Computer Computations* (pp. 85–103). Plenum Press. |
+| <a id="ref-4"></a>[4] | Dantzig, G. B., & Ramser, J. H. (1959). *The Truck Dispatching Problem*. Management Science, 6(1), 80–91. |
+| <a id="ref-5"></a>[5] | Lenstra, J. K., & Rinnooy Kan, A. H. G. (1981). *Complexity of vehicle routing and scheduling problems*. Networks, 11(2), 221–227. |
+| <a id="ref-6"></a>[6] | Bräysy, O., & Gendreau, M. (2001). *Metaheuristics for the Vehicle Routing Problem with Time Windows*. |
+| <a id="ref-7"></a>[7] | Muriyatmoko, D., Djunaidy, A., & Muklason, A. (2024). *Heuristics and Metaheuristics for Solving Capacitated Vehicle Routing Problem: An Algorithm Comparison*. Procedia Computer Science. |
+| <a id="ref-8"></a>[8] | Ashouri, M., & Yousefikhoshbakht, M. (2017). *A Combination of Meta-heuristic and Heuristic Algorithms for the VRP, OVRP and VRP with Simultaneous Pickup and Delivery*. BRAIN. |
+| <a id="ref-9"></a>[9] | Mahmudy, W. F., Widodo, A. W., & Haikal, A. H. (2024). *Challenges and Opportunities for Applying Meta-Heuristic Methods in Vehicle Routing Problems: A Review*. MDPI. |
+| <a id="ref-10"></a>[10] | Labadie, N., Prins, C., & Prodhon, C. (2016). *Metaheuristics for Vehicle Routing Problems*. Wiley. |
+| <a id="ref-11"></a>[11] | Clarke, G., & Wright, J. W. (1964). *Scheduling of Vehicles from a Central Depot to a Number of Delivery Points*. Operations Research, 12(4), 568–581. |
+| <a id="ref-12"></a>[12] | Feo, T. A., & Resende, M. G. C. (1995). *Greedy Randomized Adaptive Search Procedures*. Journal of Global Optimization, 6(2), 109–133. |
+| <a id="ref-13"></a>[13] | Glover, F. (1986). *Future Paths for Integer Programming and Links to Artificial Intelligence*. Computers & Operations Research, 13(5), 533–549. |
+| <a id="ref-14"></a>[14] | Satopaa, V., Albrecht, J., Irwin, D., & Raghavan, B. (2011). *Finding a "Kneedle" in a Haystack: Detecting Knee Points in System Behavior*. ICDCS Workshops. |
+| <a id="ref-15"></a>[15] | Kirkpatrick, S., Gelatt, C. D., & Vecchi, M. P. (1983). *Optimization by Simulated Annealing*. Science, 220(4598), 671–680. |
+| <a id="ref-16"></a>[16] | Potvin, J. Y. (1996). *Genetic Algorithms for the Traveling Salesman Problem*. Annals of Operations Research, 63(3), 337–370. |
+| <a id="ref-17"></a>[17] | Solomon, M. M. (1987). *Algorithms for the Vehicle Routing and Scheduling Problems with Time Window Constraints*. Operations Research, 35(2), 254–265. |
 
 ## License · Licence
 
