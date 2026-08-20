@@ -8,7 +8,7 @@ constraints sit on top of the classic VRP:
 - surcharged edges: some roads are usable but cost more (``surcout=True``).
 
 This package holds the implementation extracted from ``notebooks/final_nb.ipynb``
-so the algorithms can be imported, reused and tested outside the notebook.
+so the algorithms can be imported and reused outside the notebook.
 """
 
 from .graph import random_graph
